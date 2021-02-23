@@ -1,6 +1,6 @@
 ;;;; Pitch system
 
-(defgeneric get-note (note-collection ordinal)
+(defgeneric get-pitch (note-collection ordinal)
   (:documentation "Get the ordinal note of the tuning system")
 )
 
@@ -20,7 +20,7 @@
 
 (defconstant +12-tet+ (make-instance 'equal-tuning :base 440 :tune-ratio 1.059463094))
 
-(defmethod get-note ((tn equal-tuning) (ordinal integer))
+(defmethod get-pitch ((tn equal-tuning) (ordinal integer))
   (* (slot-value tn 'base) (expt (slot-value tn 'tune-ratio) ordinal))
 )
 
@@ -34,8 +34,12 @@
   )
 )
 
-(defmethod get-note ((chrd chord) (ordinal integer))
-  (get-note (slot-value chrd 'super) (nth ordinal (slot-value chrd 'ordinals)))
+(defmethod get-pitch ((chrd chord) (ordinal integer))
+  (get-pitch (slot-value chrd 'super) (nth ordinal (slot-value chrd 'ordinals)))
+)
+
+(defmethod get-pitches (chrd)
+  (loop for i from 0 to (- (length (slot-value chrd 'ordinals)) 1) collect (get-pitch chrd i))
 )
 
 (defun sum (lst i end)
@@ -48,7 +52,15 @@
 )
 
 (defun modnth (lst i)
-  (nth lst (mod i (length lst)))
+  (nth (mod i (length lst)) lst)
+)
+
+(defun in-range (x rng)
+  (and (>= x (first rng)) (<= x (second rng)))
+)
+
+(defun float-eq (x y)
+  (< (abs (- x y)) 0.05)
 )
 
 (defun make-scale (tn increments base-note)
@@ -79,12 +91,32 @@
 (defconstant +note-names+ (list "C" "C#" "D" "D#" "E" "F" "F#" "G" "G#" "A" "A#" "B"))
 
 (defun get-pitch-from-name (note-name octave)
-  (get-note +12-tet+ (+ (- (position note-name +note-names+ :test (lambda (a b) (string= a b))) 9) (* 12 (- octave 4))))
+  (get-pitch +12-tet+ (+ (- (position note-name +note-names+ :test (lambda (a b) (string= a b))) 9) (* 12 (- octave 4))))
 )
 
 (defconstant +octave-ranges+ (loop for oct from 0 to 8 collect (list
-                                                                 (get-pitch-from-name "C" oct)
-                                                                 (get-pitch-from-name "B" oct)))
+                                                                 (- (get-pitch-from-name "C" oct) 0.01)
+                                                                 (+ (get-pitch-from-name "B" oct) 0.01)))
+)
+
+(defun get-pitch-octave (pitch)
+  (position pitch +octave-ranges+ :test (lambda (p rng) (in-range p rng)))
+)
+
+(defun get-pitch-note (pitch)
+    (find pitch +note-names+ :test (lambda (p note) (float-eq p (get-pitch-from-name note (get-pitch-octave pitch)))))
+)
+
+(defun get-pitch-name (pitch)
+  (list (get-pitch-note pitch) (get-pitch-octave pitch))
+)
+
+(defun label-pitch (pitch)
+  (concatenate 'string (get-pitch-note pitch) (write-to-string (get-pitch-octave pitch)))
+)
+
+(defun label-chord (chrd)
+  (loop for pitch in (get-pitches chrd) collect (label-pitch pitch))
 )
 
 ;;; Chord Modifications
