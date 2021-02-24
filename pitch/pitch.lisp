@@ -24,6 +24,10 @@
   (* (slot-value tn 'base) (expt (slot-value tn 'tune-ratio) ordinal))
 )
 
+(defun from-pitch (tn pitch)
+  (round (log (/ pitch (slot-value tn 'base)) (slot-value tn 'tune-ratio)))
+)
+
 (defclass chord ()
   ((super
      :initarg :super
@@ -53,6 +57,15 @@
 
 (defun modnth (lst i)
   (nth (mod i (length lst)) lst)
+)
+
+(defun substitute-nth (lst n new)
+  (if (< (length lst) 3) lst
+      (append (subseq lst 0 n) (list new) (subseq lst (+ n 1) (length lst))))
+)
+
+(defun add-nth (lst n change)
+  (substitute-nth lst n (+ (nth n lst) change))
 )
 
 (defun in-range (x rng)
@@ -94,6 +107,11 @@
   (get-pitch +12-tet+ (+ (- (position note-name +note-names+ :test (lambda (a b) (string= a b))) 9) (* 12 (- octave 4))))
 )
 
+(defun get-pitch-from-note (note-name)
+  (if (find #\# note-name) (get-pitch-from-name (subseq note-name 0 2) (parse-integer (subseq note-name 2)))
+       (get-pitch-from-name (subseq note-name 0 1) (parse-integer (subseq note-name 1))))
+)
+
 (defconstant +octave-ranges+ (loop for oct from 0 to 8 collect (list
                                                                  (- (get-pitch-from-name "C" oct) 0.01)
                                                                  (+ (get-pitch-from-name "B" oct) 0.01)))
@@ -119,8 +137,54 @@
   (loop for pitch in (get-pitches chrd) collect (label-pitch pitch))
 )
 
+;;; Intervals
+(defconstant +interval-names+ (list "P1" "m2" "M2" "m3" "M3" "P4" "A4" "P5" "m6" "M6" "m7" "M7" "P8"))
+
+(defun label-interval (semitones)
+  (if (< semitones 12) (nth semitones +interval-names+)
+      (concatenate 'string (label-interval (mod semitones 12)) "+" (write-to-string (floor semitones 12))))
+)
+
+(defun interval-semitones (name)
+  (position name +interval-names+ :test (lambda (a b) (string= a b)))
+)
+
+(defun pitch-interval (p0 p1)
+  (label-interval (- (from-pitch +12-tet+ (max p0 p1)) (from-pitch +12-tet+ (min p0 p1))))
+)
+
+(defun note-interval (n0 n1)
+  (pitch-interval (get-pitch-from-note n0) (get-pitch-from-note n1))
+)
+
 ;;; Chord Modifications
-;(defun shift-note (chord ordinal shift)
-;  (make-instance 'chord :super (slot-value chord 'super)
-;                 :ordinals ())
-;)
+(defun trans-semitone (chord ordinal semitone)
+  (make-instance 'chord :super (slot-value chord 'super)
+                 :ordinals (add-nth (slot-value chord 'ordinals) ordinal semitone))
+)
+
+(defun trans-semitone-all (chord semitone)
+  (make-instance 'chord :super (slot-value chord 'super)
+                 :ordinals (loop for ord in (slot-value chord 'ordinals) collect (+ ord semitone)))
+)
+
+(defun trans-octave (chord ordinal octave)
+  (trans-semitone chord ordinal (* 12 octave))
+)
+
+(defun trans-octave-all (chord octave)
+  (trans-semitone-all chord (* 12 octave))
+)
+
+(defun chord-add-semitone (chord semitone)
+  (make-instance 'chord :super (slot-value chord 'super)
+                 :ordinals (append (slot-value chord 'ordinals) (list semitone)))
+)
+
+(defun chord-add-base-offset (chord offset)
+  (chord-add-semitone chord (+ offset (first (slot-value chord 'ordinals))))
+)
+
+(defconstant output
+  (label-chord (chord-add-base-offset (make-triad +a-major+ 0) 10))
+)
