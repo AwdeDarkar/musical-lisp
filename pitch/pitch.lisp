@@ -95,7 +95,7 @@
 
 ;; Builds a triad off of the scale/chord from the given degree, but keeps the
 ;; tuning as the super-chord to make modification easier
-(defun make-triad (scale degree)
+(defun scale-triad (scale degree)
   (make-instance 'chord :super (slot-value scale 'super)
       :ordinals (loop for x in '(0 2 4) collect (modnth (slot-value scale 'ordinals) (+ x degree))))
 )
@@ -133,7 +133,7 @@
   (concatenate 'string (get-pitch-note pitch) (write-to-string (get-pitch-octave pitch)))
 )
 
-(defun label-chord (chrd)
+(defun label-chord-notes (chrd)
   (loop for pitch in (get-pitches chrd) collect (label-pitch pitch))
 )
 
@@ -143,6 +143,12 @@
 (defun label-interval (semitones)
   (if (< semitones 12) (nth semitones +interval-names+)
       (concatenate 'string (label-interval (mod semitones 12)) "+" (write-to-string (floor semitones 12))))
+)
+
+(defun label-chord-intervals (chord)
+  (loop for i from 1 to (- (length (slot-value chord 'ordinals)) 1) collect
+        (label-interval (abs (- (first (slot-value chord 'ordinals)) (nth i (slot-value chord 'ordinals)))))
+  )
 )
 
 (defun interval-semitones (name)
@@ -157,7 +163,30 @@
   (pitch-interval (get-pitch-from-note n0) (get-pitch-from-note n1))
 )
 
-;;; Chord Modifications
+;;; Advanced Chord Construction and Modifications
+(defconstant +chord-names+ '(("M" ("M3" "P5")) ("m" ("m3" "P5")) ("dim" ("m3" "A4")) ("aug" ("M3" "m6"))
+    ("maj7" ("M3" "P5" "M7")) ("min7" ("m3" "P5" "m7")) ("7" ("M3" "P5" "m7")) ("dim7" ("m3" "A4" "A6"))
+    ("m7b5" ("m3" "A4" "m7")) ("mM7" ("m3" "P5" "M7")) ("aug7#5" ("M3" "m6" "M7"))
+))
+
+(defun build-chord-intervals (base-note intervals)
+  (make-instance 'chord :super +12-tet+
+                 :ordinals (append (list (from-pitch +12-tet+ (get-pitch-from-note base-note)))
+                           (loop for int in intervals collect (+
+                                                               (interval-semitones int)
+                                                               (from-pitch +12-tet+ (get-pitch-from-note base-note)))))
+  )
+)
+
+(defun build-chord (base-note chord-name)
+  (build-chord-intervals base-note (second (assoc chord-name +chord-names+ :test #'equal)))
+)
+
+(defun label-chord (chord)
+  (concatenate 'string (first (label-chord-notes chord)) "|"
+        (first (rassoc (list (label-chord-intervals chord)) +chord-names+ :test #'equal)))
+)
+
 (defun trans-semitone (chord ordinal semitone)
   (make-instance 'chord :super (slot-value chord 'super)
                  :ordinals (add-nth (slot-value chord 'ordinals) ordinal semitone))
@@ -185,6 +214,12 @@
   (chord-add-semitone chord (+ offset (first (slot-value chord 'ordinals))))
 )
 
+(defun chord-add-interval (chord interval &optional (octave 0))
+  (chord-add-base-offset chord (+ (interval-semitones interval) (* octave 12)))
+)
+
+(defconstant tchord (build-chord "A4" "7"))
+
 (defconstant output
-  (label-chord (chord-add-base-offset (make-triad +a-major+ 0) 10))
+  (label-chord tchord)
 )
