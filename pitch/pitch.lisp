@@ -167,7 +167,10 @@
 (defconstant +chord-names+ '(("M" ("M3" "P5")) ("m" ("m3" "P5")) ("dim" ("m3" "A4")) ("aug" ("M3" "m6"))
     ("maj7" ("M3" "P5" "M7")) ("min7" ("m3" "P5" "m7")) ("7" ("M3" "P5" "m7")) ("dim7" ("m3" "A4" "A6"))
     ("m7b5" ("m3" "A4" "m7")) ("mM7" ("m3" "P5" "M7")) ("aug7#5" ("M3" "m6" "M7"))
-    ("aug7" ("M3" "m6" "m7")) ("mM7b5" ("m3" "A4" "m7") ("7b5" ("M3" "A4" "m3")) ("M7b5" ("M3" "A4" "M7"))
+    ("aug7" ("M3" "m6" "m7")) ("mM7b5" ("m3" "A4" "m7")) ("7b5" ("M3" "A4" "m3")) ("M7b5" ("M3" "A4" "M7"))
+    ("sus2" ("M2" "P5")) ("sus4" ("P4" "P5")) ("7sus2" ("M2" "P5" "m7")) ("7sus4" ("P4" "P5" "m2"))
+    ("dim7sus2" ("M2" "A4" "A6")) ("dim7sus4" ("P4" "A4" "A6")) ("aug7sus2" ("M2" "m6" "m7"))
+    ("aug7sus4" ("P4" "m6" "m7"))
 ))
 
 (defun build-chord-intervals (base-note intervals)
@@ -219,7 +222,7 @@
   (chord-add-base-offset chord (+ (interval-semitones interval) (* octave 12)))
 )
 
-(defconstant tchord (build-chord "A4" "7"))
+(defconstant tchord (build-chord "A4" "7sus2"))
 
 (defconstant output
   (label-chord tchord)
