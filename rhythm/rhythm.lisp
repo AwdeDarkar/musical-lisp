@@ -14,11 +14,11 @@
 
 (defclass section ()
    ((super-section ; Super-section (if any)
-     :initarg :super
-     :accessor super)
+     :initarg :super-section
+     :accessor super-section)
    (super-position ; Position within the super-section
-     :initarg :pos
-     :accessor pos)
+     :initarg :super-position
+     :accessor super-position)
    (sub-divisions ; Links to the sub-divisions
      :initarg :subs
      :accessor subs)
@@ -26,8 +26,8 @@
      :initarg :division
      :accessor division)
    (comp-beat ; < 0 if the section is a lesser time division than a beat, > 0 if it is greater, = 0 if it's a beat
-     :initarg :is-measure
-     :accessor is-measure))
+     :initarg :comp-beat
+     :accessor comp-beat))
 )
 
 (defun get-duration-at-bpm (sect bpm)
@@ -41,5 +41,19 @@
 )
 
 (defun equal-division (n)
-  (make-instance 'division :order n :distribution (loop for i from 0 to n (collect (/ 1 n))))
+  (make-instance 'division :order n :distribution (loop for i from 0 to (- n 1) collect (/ 1 n)))
+)
+
+(defun make-beat (measure ordinal)
+  (make-instance 'section :super-section measure :super-position ordinal :comp-beat 0)
+)
+
+(defun make-measure (num-beats)
+  (setq measure (make-instance 'section :division (equal-division num-beats) :comp-beat 1))
+  (setf (slot-value measure 'sub-divisions) (loop for i from 0 to (- num-beats 1) collect (make-beat measure i)))
+  measure
+)
+
+(defconstant output
+  (make-measure 4)
 )
