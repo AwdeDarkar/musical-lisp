@@ -2,7 +2,7 @@
 
 inotifywait -e close_write,moved_to,create -m . |
 while read -r directory events filename; do
-  if [ "$filename" = "base.lisp" ]; then
-    ./base.lisp
+  if [ "$filename" = "instrument.lisp" ]; then
+    sbcl --script instrument.lisp
   fi
 done

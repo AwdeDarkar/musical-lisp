@@ -4,15 +4,23 @@
 (ql:quickload "cl-wave-file-writer")
 
 ;;; === FUNCTION OPERATIONS === ;;;
+;; (these are pretty universal and should maybe go in a separate lib)
 
+(defun fmulti (fs x)
+  (loop for f in fs collect (funcall f x))
+)
+
+;; Takes a function which operates on numbers (like * or +) and returns a function that
+;; wraps a list of functions that also operate on numbers.
+;; So: MFA: (F: R -> R) -> (F: (list F: R -> R) -> (F: R -> R))
 (defun meta-function-operator (meta-func)
   (lambda (fs)
-    (lambda (tm) (funcall meta-func (loop for f in fs collect (funcall f tm))))
+    (lambda (tm) (apply meta-func (fmulti fs tm)))
   )
 )
 
-(defun f* (fs) (funcall (meta-function-operator *) fs))
-(defun f+ (fs) (funcall (meta-function-operator +) fs))
+(defun f* (fs) (funcall (meta-function-operator '*) fs))
+(defun f+ (fs) (funcall (meta-function-operator '+) fs))
 
 (defun fscale (f x)
   (lambda (tm) (* x (funcall f tm)))
@@ -44,7 +52,7 @@
 
 (defun generate-sample (segment volume sample-rate)
   (loop for tm from 0 to (* (slot-value segment 'duration) sample-rate)
-    collect (* (funcall (slot-value segment 'func) (/ (slot-value segment 'duration) sample-rate)) volume)
+    collect (* (funcall (slot-value segment 'func) (/ tm sample-rate)) volume)
   )
 )
 
@@ -56,6 +64,10 @@
 
 (defun fpitch (f pitch)
   (fshift f (* pitch 2 pi))
+)
+
+(defun sine (pitch)
+  (fpitch 'sin pitch)
 )
 
 (defun fourier-sum (wave-gen pitch-gen amp-gen cutoff)
@@ -86,7 +98,7 @@
 ;;; === Audio Play === ;;;
 (defconstant +output-file+ "/home/darkar/bench/learning/lisp/musical-lisp/generated/output.wav")
 (defconstant +sample-rate+ 44100)
-(defconstant +base-volume+ 0.04)
+(defconstant +base-volume+ 0.2)
 
 (defun play-sample (sample sample-rate file)
   (let ((wave-writer (cl-wave-file-writer:make-writer
@@ -97,7 +109,7 @@
       ;; Open file
       (funcall (getf wave-writer :open-file))
       ;; Write samples
-      (apply (getf wave-writer :write-sample) sample)
+      (loop for val in sample do (funcall (getf wave-writer :write-sample) val))
       ;; Close file
       (funcall (getf wave-writer :close-file))
   )
@@ -111,6 +123,10 @@
   (play-segment segment +base-volume+ +sample-rate+ +output-file+)
 )
 
-(defconstant output (create-segment (fwrap 'fpitch 'sin) 'gaussian 440 1))
+(defconstant output (create-segment 'sine 'square 440 1.5))
+(defconstant output-sample (generate-sample output +base-volume+ +sample-rate+))
 
-;(play output)
+(defun f0 (x) (* 2 x))
+(defun f1 (x) (* 3 x))
+
+(play output)
