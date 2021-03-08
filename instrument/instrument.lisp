@@ -30,6 +30,10 @@
   (lambda (tm) (funcall f (* x tm)))
 )
 
+(defun fo (f g)
+  (lambda (tm) (funcall f (funcall g tm)))
+)
+
 (defun fphase (f x)
   (lambda (tm) (funcall f (+ tm x)))
 )
@@ -66,16 +70,35 @@
   (fshift f (* pitch 2 pi))
 )
 
+(defun square (pitch)
+  (lambda (tm) (if (> (sin (* tm pitch 2 pi)) 0) 1 -1))
+)
+
 (defun sine (pitch)
   (fpitch 'sin pitch)
+)
+
+(defun warp-sine (warp)
+  (lambda (pitch) (fpitch (fo 'sin warp) pitch))
 )
 
 (defun fourier-sum (wave-gen pitch-gen amp-gen cutoff)
   (setq i 0)
   (f+ (loop while (> (funcall amp-gen i) cutoff) do (incf i) collect 
-    (fscale (funcall amp-gen i) (funcall wave-gen (funcall pitch-gen i))))
+    (fscale (funcall wave-gen (funcall pitch-gen i)) (funcall amp-gen i)))
   )
 )
+
+(defun overtone-sequence (base-pitch)
+  (lambda (n) (* base-pitch n))
+)
+
+(defun detuned-overtone (base-pitch tune-shift)
+  (lambda (n) (+ (* base-pitch n) (funcall tune-shift n)))
+)
+
+(defun inst-harmonic (pitch) (fourier-sum 'sine (overtone-sequence pitch) (lambda (n) (/ 1 (+ n 1))) (/ 1 20)))
+(defun inst-harmonic-tunedown (pitch) (fourier-sum 'sine (detuned-overtone pitch (lambda (n) (* n n))) (lambda (n) (/ 1 (+ n 1))) (/ 1 20)))
 
 ;;; === CORE PULSE FUNCTIONS === ;;;
 
@@ -91,14 +114,16 @@
   )
 )
 
-(defun gaussian (duration)
-  (gaussian-distribution (/ duration 2) (/ duration 4))
+(defun gaussian-pulse (sharpness)
+  (lambda (duration)
+    (gaussian-distribution (/ duration 2) (/ duration sharpness))
+  )
 )
 
 ;;; === Audio Play === ;;;
 (defconstant +output-file+ "/home/darkar/bench/learning/lisp/musical-lisp/generated/output.wav")
 (defconstant +sample-rate+ 44100)
-(defconstant +base-volume+ 0.2)
+(defconstant +base-volume+ (expt 2 -6.5))
 
 (defun play-sample (sample sample-rate file)
   (let ((wave-writer (cl-wave-file-writer:make-writer
@@ -123,10 +148,7 @@
   (play-segment segment +base-volume+ +sample-rate+ +output-file+)
 )
 
-(defconstant output (create-segment 'sine 'square 440 1.5))
-(defconstant output-sample (generate-sample output +base-volume+ +sample-rate+))
-
-(defun f0 (x) (* 2 x))
-(defun f1 (x) (* 3 x))
+(defconstant output (create-segment 'inst-harmonic (gaussian-pulse 2.2) 440 0.5))
+;(defconstant output-sample (generate-sample output +base-volume+ +sample-rate+))
 
 (play output)
