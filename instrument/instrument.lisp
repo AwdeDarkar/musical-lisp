@@ -60,8 +60,17 @@
   )
 )
 
-(defun create-segment (pitch-gen pulse-gen pitch duration)
-  (make-instance 'segment :func (f* (list (funcall pitch-gen pitch) (funcall pulse-gen duration))) :duration duration)
+(defun create-segment (pitch-gen pulse-gen pitches duration)
+  (make-instance 'segment :func
+    (f* (list
+      (f+
+        (loop for pitch in pitches collect
+          (funcall pitch-gen pitch)
+        )
+      )
+      (funcall pulse-gen duration)
+    )) :duration duration
+  )
 )
 
 ;;; === CORE PITCH FUNCTIONS === ;;;
@@ -148,7 +157,6 @@
   (play-segment segment +base-volume+ +sample-rate+ +output-file+)
 )
 
-(defconstant output (create-segment 'inst-harmonic (gaussian-pulse 2.2) 440 0.5))
-;(defconstant output-sample (generate-sample output +base-volume+ +sample-rate+))
+(defconstant output (create-segment 'inst-harmonic (gaussian-pulse 2.2) '(330 440 660 880) 0.5))
 
 (play output)
